@@ -14,7 +14,7 @@ import {
   validateBlock,
   snapToGrid
 } from '@/lib/time-system'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 interface BlockListProps {
   blocks: Block[]
@@ -63,21 +63,98 @@ function TimeAxis() {
 }
 
 function snapTimeToGrid(time: string): string {
-  const [hoursStr = "0", minutesStr = "0"] = time.split(':')
-  const hours = parseInt(hoursStr)
-  const minutes = parseInt(minutesStr)
-  const date = new Date()
-  date.setHours(hours, minutes)
-  const snappedDate = snapToGrid(date)
-  return `${String(snappedDate.getHours()).padStart(2, '0')}:${String(snappedDate.getMinutes()).padStart(2, '0')}`
+  const [hours = "00", minutes = "00"] = time.split(':');
+  const date = new Date();
+  date.setHours(parseInt(hours), parseInt(minutes));
+  const snappedDate = snapToGrid(date);
+  return `${String(snappedDate.getHours()).padStart(2, '0')}:${String(snappedDate.getMinutes()).padStart(2, '0')}`;
 }
 
 export function BlockList({ blocks: initialBlocks }: BlockListProps) {
   const [isCreating, setIsCreating] = useState(false)
-  const [selectedTime, setSelectedTime] = useState(getCurrentTime())
+  const [timeInput, setTimeInput] = useState(getCurrentTime())
+  const [period, setPeriod] = useState(() => {
+    const hour = parseInt(getCurrentTime().split(':')[0] || "0")
+    return hour >= 12 ? 'pm' : 'am'
+  })
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks)
   const [error, setError] = useState<string | null>(null)
   const isEmpty = !blocks?.length
+
+  // Convert 24h to 12h format for display
+  function to12Hour(time: string): string {
+    const [hours = "00", minutes = "00"] = time.split(':')
+    const h = parseInt(hours)
+    if (h === 0) return `12:${minutes}`
+    if (h > 12) return `${h-12}:${minutes}`
+    return `${h}:${minutes}`
+  }
+
+  // Convert 12h to 24h format for storage
+  function to24Hour(time: string, p: string): string {
+    const [hours = "00", minutes = "00"] = time.split(':')
+    let h = parseInt(hours || "0")
+    if (p === 'pm' && h < 12) h += 12
+    if (p === 'am' && h === 12) h = 0
+    return `${String(h).padStart(2, '0')}:${minutes}`
+  }
+
+  function handleTimeInput(e: React.ChangeEvent<HTMLInputElement>) {
+    let value = e.target.value
+    
+    // If backspacing, just update the value
+    if (value.length < timeInput.length) {
+      setTimeInput(value)
+      return
+    }
+
+    // Remove any non-digits
+    value = value.replace(/\D/g, '')
+    
+    // Format as user types
+    if (value.length <= 2) {
+      // Just the hour part
+      const hourNum = parseInt(value || '0')
+      if (hourNum > 12) {
+        setTimeInput('12')
+      } else {
+        setTimeInput(value)
+      }
+    } else if (value.length <= 4) {
+      // Add the colon and minutes
+      const hour = value.slice(0, 2)
+      const mins = value.slice(2)
+      const hourNum = parseInt(hour || '0')
+      
+      // Validate hour (12-hour format)
+      if (hourNum > 12) {
+        setTimeInput('12' + (mins ? ':' + mins : ''))
+      } else if (hourNum === 0) {
+        setTimeInput('12' + (mins ? ':' + mins : ''))
+      } else {
+        setTimeInput(hour + (mins ? ':' + mins : ''))
+      }
+    }
+    
+    // If we have a complete time, snap to 30-min increments
+    if (value.length === 4) {
+      const hour = parseInt(value.slice(0, 2) || '0')
+      const mins = parseInt(value.slice(2) || '0')
+      
+      if (hour <= 12 && mins <= 59) {
+        // Snap minutes to nearest 30
+        const snappedMins = Math.round(mins / 30) * 30
+        setTimeInput(
+          String(hour).padStart(2, '0') + ':' + 
+          String(snappedMins === 60 ? 0 : snappedMins).padStart(2, '0')
+        )
+      }
+    }
+  }
+
+  function togglePeriod() {
+    setPeriod(prev => prev === 'am' ? 'pm' : 'am')
+  }
 
   function handleCreateBlock(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -91,7 +168,15 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
     
     if (!task || !duration || !type) return
     
-    const [hours = '0', minutes = '0'] = selectedTime.split(':')
+    // Ensure we have a valid time
+    if (!timeInput.match(/^\d{2}:\d{2}$/)) {
+      setError('Please enter a valid time')
+      return
+    }
+    
+    // Convert to 24-hour format for processing
+    const time24 = to24Hour(timeInput, period)
+    const [hours = "00", minutes = "00"] = time24.split(':')
     const parsedHours = parseInt(hours)
     const parsedMinutes = parseInt(minutes)
     const parsedDuration = parseInt(duration.toString())
@@ -179,23 +264,25 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
               className="w-full bg-[#252525] border-none rounded px-3 py-2 text-white/90 placeholder-white/30 text-sm focus:outline-none mb-3"
             />
             <div className="flex items-center gap-3">
-              <button 
-                type="button"
-                onClick={() => {
-                  const timeInput = document.querySelector('input[name="time"]') as HTMLInputElement
-                  if (timeInput) timeInput.showPicker()
-                }}
-                className="flex items-center justify-between bg-white/[0.04] hover:bg-white/[0.06] rounded px-3 py-2 text-white/80 hover:text-white/90 transition-colors group relative min-w-[120px]"
-              >
-                <input
-                  name="time"
-                  type="time"
-                  step={1800}
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(snapTimeToGrid(e.target.value))}
-                  onClick={(e) => e.stopPropagation()}
-                  className="bg-transparent border-none text-white/80 text-sm font-mono tracking-tight focus:outline-none w-[85px] [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden [&::-webkit-clear-button]:hidden selection:bg-white/10"
-                />
+              <div className="flex items-center justify-between bg-white/[0.04] hover:bg-white/[0.06] rounded px-3 py-2 text-white/80 hover:text-white/90 transition-colors group relative min-w-[120px]">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="HH:mm"
+                    maxLength={5}
+                    value={timeInput}
+                    onChange={handleTimeInput}
+                    className="bg-transparent border-none text-white/80 text-sm font-mono focus:outline-none w-[42px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePeriod}
+                    className="text-white/60 hover:text-white/80 text-xs uppercase transition-colors w-[24px] text-left"
+                  >
+                    {period}
+                  </button>
+                </div>
                 <svg 
                   width="13" 
                   height="13" 
@@ -206,7 +293,7 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
                 >
                   <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </button>
+              </div>
 
               <div className="flex items-center gap-1.5 bg-white/[0.04] rounded px-3 py-2">
                 <input
