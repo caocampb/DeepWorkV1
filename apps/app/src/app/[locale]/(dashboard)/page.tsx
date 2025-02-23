@@ -13,6 +13,7 @@ function createLocalISOString(hour: number, minute: number): string {
 }
 
 // Example blocks using our grid system (3 AM - 9 AM)
+/*
 const exampleBlocks: Block[] = [
   {
     id: '1',
@@ -36,6 +37,10 @@ const exampleBlocks: Block[] = [
     type: 'shallow'
   }
 ];
+*/
+
+// Empty blocks array for now - will be replaced with real data
+const exampleBlocks: Block[] = [];
 
 export const metadata = {
   title: "Deep Work",

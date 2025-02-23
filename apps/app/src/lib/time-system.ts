@@ -3,8 +3,8 @@ export const PIXELS_PER_HOUR = 120  // Each hour is 120px tall
 export const MINUTES_PER_INCREMENT = 30  // 30-minute grid like Linear
 export const PIXELS_PER_INCREMENT = PIXELS_PER_HOUR / 2  // 60px per increment
 export const BLOCK_GAP = 2  // Minimal 2px gap for visual separation
-export const START_HOUR = 3   // 3 AM
-export const END_HOUR = 9    // 9 AM
+export const START_HOUR = 8   // 8 AM
+export const END_HOUR = 20    // 8 PM
 export const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * PIXELS_PER_HOUR
 
 // Basic types
@@ -51,7 +51,12 @@ export function validateBlock(
   // Validate within day bounds
   const startHour = newStart.getHours()
   const endHour = newEnd.getHours()
-  if (startHour < START_HOUR || endHour > END_HOUR) {
+  const endMinutes = newEnd.getMinutes()
+  
+  // Convert end time to decimal hours for comparison (e.g., 8:30 = 8.5)
+  const endTimeInHours = endHour + (endMinutes / 60)
+  
+  if (startHour < START_HOUR || endTimeInHours > END_HOUR) {
     return { type: 'OUT_OF_BOUNDS' }
   }
 
@@ -115,4 +120,11 @@ export function getGridLines() {
   }
   
   return lines
+}
+
+// Create blocks in local time matching our grid
+export function createLocalISOString(hour: number, minute: number): string {
+  const date = new Date()
+  date.setHours(hour, minute, 0, 0)
+  return date.toISOString()
 } 
