@@ -18,6 +18,8 @@ import { useState, useRef } from 'react'
 
 interface BlockListProps {
   blocks: Block[]
+  onCreateBlock?: (block: Omit<Block, 'id'>) => void
+  onClearBlocks?: () => void
 }
 
 // Helper to format time in 12-hour format
@@ -70,25 +72,12 @@ function snapTimeToGrid(time: string): string {
   return `${String(snappedDate.getHours()).padStart(2, '0')}:${String(snappedDate.getMinutes()).padStart(2, '0')}`;
 }
 
-export function BlockList({ blocks: initialBlocks }: BlockListProps) {
+export function BlockList({ blocks, onCreateBlock, onClearBlocks }: BlockListProps) {
   const [isCreating, setIsCreating] = useState(false)
-  const [timeInput, setTimeInput] = useState(getCurrentTime())
-  const [period, setPeriod] = useState(() => {
-    const hour = parseInt(getCurrentTime().split(':')[0] || "0")
-    return hour >= 12 ? 'pm' : 'am'
-  })
-  const [blocks, setBlocks] = useState<Block[]>(initialBlocks)
+  const [timeInput, setTimeInput] = useState('')
+  const [period, setPeriod] = useState('am')
   const [error, setError] = useState<string | null>(null)
   const isEmpty = !blocks?.length
-
-  // Convert 24h to 12h format for display
-  function to12Hour(time: string): string {
-    const [hours = "00", minutes = "00"] = time.split(':')
-    const h = parseInt(hours)
-    if (h === 0) return `12:${minutes}`
-    if (h > 12) return `${h-12}:${minutes}`
-    return `${h}:${minutes}`
-  }
 
   // Convert 12h to 24h format for storage
   function to24Hour(time: string, p: string): string {
@@ -100,56 +89,61 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
   }
 
   function handleTimeInput(e: React.ChangeEvent<HTMLInputElement>) {
-    let value = e.target.value
+    const value = e.target.value
     
-    // If backspacing, just update the value
+    // Allow backspace/delete
     if (value.length < timeInput.length) {
       setTimeInput(value)
       return
     }
+    
+    // Only allow digits
+    const digits = value.replace(/[^\d]/g, '')
+    
+    // Format as we type
+    if (digits.length <= 4) {
+      // Handle hours
+      if (digits.length <= 2) {
+        const hour = parseInt(digits)
+        // Don't allow hours > 12
+        if (hour > 12) {
+          setTimeInput('12')
+        } else {
+          setTimeInput(digits)
+        }
+      } else {
+        const hours = digits.slice(0, 2)
+        const mins = digits.slice(2)
+        const minutes = parseInt(mins)
+        
+        // When they finish typing minutes, snap to nearest 30
+        if (mins.length === 2) {
+          const snappedMins = Math.round(minutes / 30) * 30
+          if (snappedMins === 60) {
+            // Roll over to next hour
+            const nextHour = (parseInt(hours) % 12) + 1
+            setTimeInput(`${String(nextHour).padStart(2, '0')}:00`)
+          } else {
+            setTimeInput(`${hours}:${String(snappedMins).padStart(2, '0')}`)
+          }
+        } else {
+          // Don't allow minutes > 59
+          if (minutes > 59) {
+            setTimeInput(`${hours}:59`)
+          } else {
+            setTimeInput(`${hours}:${mins}`)
+          }
+        }
+      }
+    }
+  }
 
-    // Remove any non-digits
-    value = value.replace(/\D/g, '')
-    
-    // Format as user types
-    if (value.length <= 2) {
-      // Just the hour part
-      const hourNum = parseInt(value || '0')
-      if (hourNum > 12) {
-        setTimeInput('12')
-      } else {
-        setTimeInput(value)
-      }
-    } else if (value.length <= 4) {
-      // Add the colon and minutes
-      const hour = value.slice(0, 2)
-      const mins = value.slice(2)
-      const hourNum = parseInt(hour || '0')
-      
-      // Validate hour (12-hour format)
-      if (hourNum > 12) {
-        setTimeInput('12' + (mins ? ':' + mins : ''))
-      } else if (hourNum === 0) {
-        setTimeInput('12' + (mins ? ':' + mins : ''))
-      } else {
-        setTimeInput(hour + (mins ? ':' + mins : ''))
-      }
-    }
-    
-    // If we have a complete time, snap to 30-min increments
-    if (value.length === 4) {
-      const hour = parseInt(value.slice(0, 2) || '0')
-      const mins = parseInt(value.slice(2) || '0')
-      
-      if (hour <= 12 && mins <= 59) {
-        // Snap minutes to nearest 30
-        const snappedMins = Math.round(mins / 30) * 30
-        setTimeInput(
-          String(hour).padStart(2, '0') + ':' + 
-          String(snappedMins === 60 ? 0 : snappedMins).padStart(2, '0')
-        )
-      }
-    }
+  // Reset form when opening
+  function handleOpenForm() {
+    setIsCreating(true)
+    setTimeInput('')
+    setPeriod('am')
+    setError(null)
   }
 
   function togglePeriod() {
@@ -166,7 +160,7 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
     const duration = formData.get('duration')
     const type = formData.get('type')
     
-    if (!task || !duration || !type) return
+    if (!task || !duration || !type || !onCreateBlock) return
     
     // Ensure we have a valid time
     if (!timeInput.match(/^\d{2}:\d{2}$/)) {
@@ -191,8 +185,7 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
     }
     
     // Create the new block
-    const newBlock: Block = {
-      id: crypto.randomUUID(),
+    const newBlock = {
       task: task.toString(),
       startTime: createLocalISOString(parsedHours, parsedMinutes),
       duration: parsedDuration,
@@ -213,8 +206,8 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
       return
     }
     
-    // Add the new block to our list
-    setBlocks(prev => [...prev, newBlock])
+    // Add the new block
+    onCreateBlock(newBlock)
     setIsCreating(false)
   }
 
@@ -230,16 +223,22 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
     <div className="mt-8">
       {/* Header with add button */}
       <div className="flex items-center justify-end gap-2">
-        {!isEmpty && (
+        {blocks.length > 0 && onClearBlocks && (
           <button
-            onClick={() => setBlocks([])}
+            onClick={onClearBlocks}
             className="text-white/40 hover:text-white/60 transition-colors text-sm"
           >
             Clear All
           </button>
         )}
         <button
-          onClick={() => setIsCreating(!isCreating)}
+          onClick={() => {
+            if (isCreating) {
+              setIsCreating(false)
+            } else {
+              handleOpenForm()
+            }
+          }}
           className={`text-white/40 hover:text-white/60 transition-colors ${isCreating ? 'text-white/60' : ''}`}
         >
           {isCreating ? '×' : '+'}
@@ -273,7 +272,7 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
                     maxLength={5}
                     value={timeInput}
                     onChange={handleTimeInput}
-                    className="bg-transparent border-none text-white/80 text-sm font-mono focus:outline-none w-[42px]"
+                    className="bg-transparent border-none text-white/80 text-sm font-mono focus:outline-none w-[52px]"
                   />
                   <button
                     type="button"
@@ -329,45 +328,38 @@ export function BlockList({ blocks: initialBlocks }: BlockListProps) {
         </div>
       )}
 
-      {isEmpty ? (
-        <div className="mt-8 text-center space-y-1">
-          <p className="text-sm text-white/60">Ready for deep work?</p>
-          <p className="text-sm text-white/40">Transform your tasks to create focused blocks</p>
+      <div className="mt-4 flex gap-4">
+        <TimeAxis />
+        <div 
+          className="flex-1 relative rounded-lg border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden" 
+          style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}
+        > 
+          {/* Time grid lines */}
+          {gridLines.map(({ position, isHour }, i) => (
+            <div 
+              key={i}
+              className={`absolute left-0 right-0 border-t ${
+                isHour ? 'border-white/[0.08]' : 'border-white/[0.04]'
+              }`}
+              style={{ top: position }}
+            />
+          ))}
+          
+          {/* Blocks */}
+          {sortedBlocks.map(block => (
+            <div
+              key={block.id}
+              className="absolute inset-x-0"
+              style={{ 
+                top: getBlockPosition(block),
+                height: getBlockHeight(block.duration)
+              }}
+            >
+              <TimeBlock block={block} />
+            </div>
+          ))}
         </div>
-      ) : (
-        <div className="mt-4 flex gap-4">
-          <TimeAxis />
-          <div 
-            className="flex-1 relative rounded-lg border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden" 
-            style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}
-          > 
-            {/* Time grid lines */}
-            {gridLines.map(({ position, isHour }, i) => (
-              <div 
-                key={i}
-                className={`absolute left-0 right-0 border-t ${
-                  isHour ? 'border-white/[0.08]' : 'border-white/[0.04]'
-                }`}
-                style={{ top: position }}
-              />
-            ))}
-            
-            {/* Blocks */}
-            {sortedBlocks.map(block => (
-              <div
-                key={block.id}
-                className="absolute inset-x-0"
-                style={{ 
-                  top: getBlockPosition(block),
-                  height: getBlockHeight(block.duration)
-                }}
-              >
-                <TimeBlock block={block} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

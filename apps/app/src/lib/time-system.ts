@@ -7,8 +7,18 @@ export const START_HOUR = 8   // 8 AM
 export const END_HOUR = 20    // 8 PM
 export const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * PIXELS_PER_HOUR
 
-// Simple time extraction - just find HH:MM or HH(am/pm)
+// Simple time extraction - just find HH:MM or HH(am|pm)
 export function findFixedTimes(input: string): { time: string; task: string }[] {
+  // Test cases:
+  // "9am" -> "09:00"
+  // "9:30am" -> "09:30"
+  // "2pm" -> "14:00"
+  // "2:30pm" -> "14:30"
+  // "team meeting at 2pm" -> "14:00", "team meeting"
+  // "2 in the afternoon" -> "14:00"
+  // "12pm" -> "12:00" (noon)
+  // "12am" -> "00:00" (midnight)
+  
   const fixedTimes: { time: string; task: string }[] = []
   const lines = input.split('\n')
 
@@ -20,7 +30,10 @@ export function findFixedTimes(input: string): { time: string; task: string }[] 
       let hour = parseInt(hours || '0')
       
       // Convert to 24hr
-      if (meridian.toLowerCase() === 'pm' && hour < 12) hour += 12
+      const isPM = meridian.toLowerCase() === 'pm' || 
+        (!meridian && hour < 12 && /\b(afternoon|evening|night|pm)\b/i.test(line))
+      
+      if (isPM && hour < 12) hour += 12
       if (meridian.toLowerCase() === 'am' && hour === 12) hour = 0
       
       // Round to nearest 30
@@ -73,11 +86,11 @@ export function getBlockTimeRange(block: Block): { start: Date; end: Date } {
 }
 
 export function validateBlock(
-  newBlock: Block, 
+  newBlock: Omit<Block, 'id'>, 
   existingBlocks: Block[],
   ignoreId?: string
 ): BlockValidationError | null {
-  const { start: newStart, end: newEnd } = getBlockTimeRange(newBlock)
+  const { start: newStart, end: newEnd } = getBlockTimeRange(newBlock as Block)
 
   // Convert UTC times to local for validation
   const startHour = getLocalHour(newStart)

@@ -25,7 +25,19 @@ answer slack messages
 11am planning
 2pm design review
 3pm retrospective
-4pm one-on-ones`
+4pm one-on-ones`,
+
+  // Test 4: The Complete Test
+  // Tests all scheduling scenarios: deep work, fixed times, breaks, and task types
+  `deep coding project
+9am standup
+catch up on emails
+team meeting at 2pm
+code review session
+lunch break at 12pm
+quick slack check
+3:30pm planning session
+work on documentation`
 ]
 
 export async function POST(req: Request) {

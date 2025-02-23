@@ -100,13 +100,13 @@ ${fixedSlots.map(f => `- "${f.task}" at ${f.time} (slot ${f.slot})`).join('\n')}
 TASK TYPES:
 - DEEP: Complex work (90 min)
 - SHALLOW: Quick tasks (30 min)
-- BREAK: Lunch (60 min) or Rest (30 min)
+- BREAK: Only schedule breaks if explicitly mentioned (lunch/break/rest)
 
 GOOD PATTERN:
 - Use morning for deep work
 - Batch meetings/shallow work together
-- Take breaks between deep work
-- Put lunch ~12:00-13:00
+- Only add breaks when requested
+- Keep schedule minimal and focused
 
 For each task, explain HOW it supports focused work.
 
@@ -138,17 +138,11 @@ function slotToTime(slot: number): string {
   const hour = START_HOUR + Math.floor(slot / 2)
   const minute = (slot % 2) * 30
   
-  // Create date at the correct local time
   const date = new Date()
   date.setHours(hour, minute, 0, 0)
-  
-  // Convert to UTC for storage
-  return new Date(
-    date.getTime() - date.getTimezoneOffset() * 60000
-  ).toISOString()
+  return date.toISOString()
 }
 
-// Helper to check if a time slot is available
 function isSlotAvailable(
   startTime: string, 
   duration: number,
@@ -157,17 +151,15 @@ function isSlotAvailable(
   const start = new Date(startTime)
   const end = new Date(start.getTime() + duration * 60000)
   
-  // Check working hours
-  const localStart = new Date(start.getTime() + start.getTimezoneOffset() * 60000)
-  const localEnd = new Date(end.getTime() + end.getTimezoneOffset() * 60000)
-  const startHour = localStart.getHours()
-  const endHour = localEnd.getHours()
+  // Simple hour check
+  const startHour = start.getHours()
+  const endHour = end.getHours()
   
   if (startHour < START_HOUR || endHour >= END_HOUR) {
     return false
   }
   
-  // Check overlaps
+  // Simple overlap check
   return !blocks.some(block => {
     const blockStart = new Date(block.startTime)
     const blockEnd = new Date(blockStart.getTime() + block.duration * 60000)
@@ -177,8 +169,8 @@ function isSlotAvailable(
 
 export async function transformToBlocks(input: string): Promise<Result<Block[]>> {
   try {
-    // First parse any fixed times
     const fixedTimes = parseFixedTimes(input)
+    console.log('Fixed times:', fixedTimes)
     
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -196,36 +188,28 @@ export async function transformToBlocks(input: string): Promise<Result<Block[]>>
     }
 
     const { slots } = JSON.parse(message.function_call.arguments) as { slots: TimeSlot[] }
+    console.log('AI slots:', slots)
+    
     const blocks: Block[] = []
     const invalidBlocks: { block: Partial<Block>; reason: string }[] = []
     
-    // Convert slots to blocks
     for (const slot of slots) {
-      // Validate slot is within range
       if (slot.slot < 0 || slot.slot >= TOTAL_SLOTS) {
+        console.log('Invalid slot:', slot)
         invalidBlocks.push({
-          block: {
-            task: slot.task,
-            duration: slot.duration * 30,
-            type: slot.type
-          },
-          reason: `${slot.reason} - but slot ${slot.slot} is outside working hours`
+          block: { task: slot.task, duration: slot.duration * 30, type: slot.type },
+          reason: 'Outside working hours'
         })
         continue
       }
       
       const startTime = slotToTime(slot.slot)
       
-      // Check for overlaps
       if (!isSlotAvailable(startTime, slot.duration * 30, blocks)) {
+        console.log('Overlap:', { slot, startTime })
         invalidBlocks.push({
-          block: {
-            task: slot.task,
-            startTime,
-            duration: slot.duration * 30,
-            type: slot.type
-          },
-          reason: `${slot.reason} - but slot is not available`
+          block: { task: slot.task, duration: slot.duration * 30, type: slot.type },
+          reason: 'Time slot not available'
         })
         continue
       }
@@ -239,23 +223,14 @@ export async function transformToBlocks(input: string): Promise<Result<Block[]>>
       })
     }
 
-    // Sort blocks by start time
-    const sortedBlocks = [...blocks].sort((a, b) => 
-      new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-    )
-    
     return { 
       success: true,
-      data: sortedBlocks,
+      data: blocks.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
       invalidBlocks: invalidBlocks.length > 0 ? invalidBlocks : undefined,
-      warnings: invalidBlocks.length > 0 
-        ? [`${invalidBlocks.length} block(s) could not be scheduled. Click "Fix Invalid Blocks" to resolve.`]
-        : undefined
+      warnings: invalidBlocks.length > 0 ? ['Some blocks could not be scheduled'] : undefined
     }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error occurred" 
-    }
+    console.error('Transform error:', error)
+    return { success: false, error: String(error) }
   }
 } 

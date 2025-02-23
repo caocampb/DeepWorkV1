@@ -28,6 +28,7 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
     if (!text.trim() || isTransforming) return
     
     setIsTransforming(true)
+    console.log('Making API call with text:', text)
     
     try {
       const res = await fetch('/api/brain-dump', {
@@ -37,8 +38,10 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
       })
       
       const result = await res.json()
+      console.log('API response:', result)
       
       if (result.success && result.data) {
+        console.log('Calling onTransform with blocks:', result.data)
         onTransform(result.data)
       }
     } finally {
