@@ -8,7 +8,7 @@ export const END_HOUR = 20    // 8 PM
 export const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * PIXELS_PER_HOUR
 
 // Simple time extraction - just find HH:MM or HH(am|pm)
-export function findFixedTimes(input: string): { time: string; task: string }[] {
+export function findFixedTimes(input: string): { time: string; task: string; isDeadline?: boolean }[] {
   // Test cases:
   // "9am" -> "09:00"
   // "9:30am" -> "09:30"
@@ -18,8 +18,9 @@ export function findFixedTimes(input: string): { time: string; task: string }[] 
   // "2 in the afternoon" -> "14:00"
   // "12pm" -> "12:00" (noon)
   // "12am" -> "00:00" (midnight)
+  // "ship auth by 10am" -> "10:00", "ship auth", isDeadline: true
   
-  const fixedTimes: { time: string; task: string }[] = []
+  const fixedTimes: { time: string; task: string; isDeadline?: boolean }[] = []
   const lines = input.split('\n')
 
   for (const line of lines) {
@@ -43,7 +44,10 @@ export function findFixedTimes(input: string): { time: string; task: string }[] 
       const time = `${hour.toString().padStart(2, '0')}:${roundedMins.toString().padStart(2, '0')}`
       const task = line.replace(match[0], '').trim()
       
-      fixedTimes.push({ time, task })
+      // Check if this is a deadline ("by X" or "before X")
+      const isDeadline = /\b(by|before)\b/i.test(line)
+      
+      fixedTimes.push({ time, task, isDeadline })
     }
   }
   

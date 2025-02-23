@@ -9,7 +9,10 @@ import { type Block } from '@/lib/types'
 const TIME_REGEX = /\b((1[0-2]|0?[1-9]):[0-5][0-9]([ap]m)?|(1[0-2]|0?[1-9])([ap]m))\b/gi
 
 interface BrainDumpInputProps {
-  onTransform: (blocks: Block[]) => void
+  onTransform: (result: { 
+    data: Block[]
+    invalidBlocks?: Array<{ block: Partial<Block>, reason: string }>
+  }) => void
 }
 
 export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
@@ -19,11 +22,6 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
   const [charCount, setCharCount] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   
-  // Highlight time markers in the display text
-  const highlightedText = text.split('\n').map(line => 
-    line.replace(TIME_REGEX, match => `<span class="text-blue-400/70">${match}</span>`)
-  ).join('\n')
-
   const handleTransform = useCallback(async () => {
     if (!text.trim() || isTransforming) return
     
@@ -40,9 +38,9 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
       const result = await res.json()
       console.log('API response:', result)
       
-      if (result.success && result.data) {
-        console.log('Calling onTransform with blocks:', result.data)
-        onTransform(result.data)
+      if (result.success) {
+        console.log('Calling onTransform with result:', result)
+        onTransform(result)
       }
     } finally {
       setIsTransforming(false)
@@ -77,11 +75,10 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold tracking-[-0.02em] text-white/90">Brain Dump</h2>
-          <p className="text-[13px] text-white/60">What do you want to accomplish today?</p>
+          <p className="text-[13px] text-white/60">What are we getting done today?</p>
         </div>
         
         <div className="relative group">
-          {/* Input handler - invisible but handles all interaction */}
           <textarea
             ref={textareaRef}
             value={text}
@@ -90,31 +87,31 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
               setCharCount(e.target.value.length)
             }}
             onKeyDown={handleKeyDown}
+            placeholder="Example:
+- Ship auth system by 10am (deep work)
+- Clear all PR backlog at 11am
+- Team sync 2pm sharp
+- Deploy new docs site
+- 30min break after deep work"
             className="w-full h-48 p-4 bg-black/60 rounded-lg border border-white/[0.08] resize-none font-mono text-sm
                      focus:outline-none focus:ring-1 focus:ring-white/[0.12] focus:border-white/[0.12]
                      transition-all duration-200 ease-out
                      group-hover:border-white/[0.11] group-hover:bg-black/70
-                     selection:bg-white/10"
-            style={{ 
-              color: 'transparent',
-              caretColor: 'white',
-              WebkitTextFillColor: 'transparent'
-            }}
+                     selection:bg-white/10
+                     text-white/90 placeholder:text-white/40"
           />
           
-          {/* Display layer - shows either placeholder or actual text */}
+          {/* Time markers overlay - absolute positioned but pointer-events-none */}
           <div 
-            className="absolute inset-0 w-full h-48 p-4 pointer-events-none font-mono text-sm whitespace-pre-wrap"
+            className="absolute inset-0 w-full h-48 p-4 pointer-events-none font-mono text-sm"
+            aria-hidden="true"
           >
-            {text ? (
-              <span className="text-white/90" dangerouslySetInnerHTML={{ __html: highlightedText }} />
-            ) : (
-              <span className="text-white/40">Example:
-- Build auth system (complex, morning)
-- Review PRs
-- Team meeting at 2pm
-- Write documentation
-- Take breaks between deep work</span>
+            {text && (
+              <div dangerouslySetInnerHTML={{ 
+                __html: text.split('\n').map(line => 
+                  line.replace(TIME_REGEX, match => `<span class="text-blue-400/70">${match}</span>`)
+                ).join('\n')
+              }} className="opacity-0 [&_span]:opacity-100 whitespace-pre-wrap" />
             )}
           </div>
           
@@ -188,12 +185,12 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
           <span className="text-white/20 translate-y-[-2px]">→</span>
           <div className="flex flex-col items-center">
             <span className={`transform transition-transform hover:scale-110 ${isTransforming ? 'text-white/70' : 'text-white/30'}`}>◎</span>
-            <span className="text-[11px] font-mono mt-2 text-white/50">Deep work</span>
+            <span className="text-[11px] font-mono mt-2 text-white/50">Execute</span>
           </div>
         </div>
         <div className="space-y-1">
-          <p className="text-sm text-white/60">Ready for deep work?</p>
-          <p className="text-sm text-white/40">Brain dump your tasks above and transform them into focused blocks</p>
+          <p className="text-sm text-white/60">Time to execute</p>
+          <p className="text-sm text-white/40">List your concrete deliverables and transform them into focused blocks</p>
         </div>
       </div>
     </div>

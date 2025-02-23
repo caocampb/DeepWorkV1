@@ -24,6 +24,7 @@ interface FixedTime {
   hour: number    // 24-hour format
   minute: number  // 0-59
   task: string
+  isDeadline: boolean
 }
 
 function timeToSlot(hour: number, minute: number): number {
@@ -33,12 +34,12 @@ function timeToSlot(hour: number, minute: number): number {
 
 function parseFixedTimes(input: string): FixedTime[] {
   const times = findFixedTimes(input)
-  return times.map(({ time, task }) => {
+  return times.map(({ time, task, isDeadline }) => {
     const [hoursStr = '0', minutesStr = '0'] = time.split(':')
     const hours = parseInt(hoursStr)
     const minutes = parseInt(minutesStr)
     if (isNaN(hours) || isNaN(minutes)) return null
-    return { hour: hours, minute: minutes, task }
+    return { hour: hours, minute: minutes, task, isDeadline: isDeadline || false }
   }).filter((time): time is FixedTime => time !== null)
 }
 
@@ -80,7 +81,8 @@ function getSystemPrompt(input: string, fixedTimes: FixedTime[]) {
   const fixedSlots = fixedTimes.map(time => ({
     slot: timeToSlot(time.hour, time.minute),
     task: time.task,
-    time: `${time.hour}:${String(time.minute).padStart(2, '0')}`
+    time: `${time.hour}:${String(time.minute).padStart(2, '0')}`,
+    isDeadline: time.isDeadline
   }))
 
   return `You are scheduling tasks to maximize deep focused work.
@@ -94,8 +96,12 @@ SLOTS:
 CORE RULES:
 1. MORNING FOCUS: Reserve 8:00-12:00 for deep work unless there's a fixed meeting
 2. BATCH SIMILAR: Group shallow tasks together to avoid context switching
-3. FIXED TIMES: Honor these exactly, but try to preserve deep work time:
-${fixedSlots.map(f => `- "${f.task}" at ${f.time} (slot ${f.slot})`).join('\n')}
+3. INTERPRET DEADLINES: "by X time" means task must finish before that time
+4. FIXED TIMES: Honor these exactly, but try to preserve deep work time:
+${fixedSlots.map(f => {
+  const prefix = f.isDeadline ? `- "${f.task}" must finish by` : `- "${f.task}" at`
+  return `${prefix} ${f.time} (slot ${f.slot})`
+}).join('\n')}
 
 TASK TYPES:
 - DEEP: Complex work (90 min)
@@ -219,7 +225,8 @@ export async function transformToBlocks(input: string): Promise<Result<Block[]>>
         task: slot.task,
         startTime,
         duration: slot.duration * 30,
-        type: slot.type
+        type: slot.type,
+        reason: slot.reason
       })
     }
 

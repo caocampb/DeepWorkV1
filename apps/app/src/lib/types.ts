@@ -7,6 +7,7 @@ export interface Block {
   duration: number     // minutes
   task: string
   type: 'deep' | 'shallow' | 'break'
+  reason?: string     // AI's reasoning for this block's schedule
 }
 
 // Type helpers

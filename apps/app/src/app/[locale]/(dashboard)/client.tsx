@@ -13,6 +13,10 @@ interface Props {
 
 export function DashboardClient({ user }: Props) {
   const [blocks, setBlocks] = useState<Block[]>([])
+  const [invalidBlocks, setInvalidBlocks] = useState<Array<{
+    block: Partial<Block>
+    reason: string
+  }>>([])
   
   function handleCreateBlock(block: Omit<Block, 'id'>) {
     setBlocks(prev => [...prev, { ...block, id: crypto.randomUUID() }])
@@ -20,6 +24,16 @@ export function DashboardClient({ user }: Props) {
 
   function handleClearBlocks() {
     setBlocks([])
+    setInvalidBlocks([])
+  }
+
+  function handleDeleteBlock(id: string) {
+    setBlocks(prev => prev.filter(block => block.id !== id))
+  }
+
+  function handleBrainDumpTransform(result: { data: Block[], invalidBlocks?: Array<{ block: Partial<Block>, reason: string }> }) {
+    setBlocks(result.data)
+    setInvalidBlocks(result.invalidBlocks || [])
   }
 
   // Copy existing UI exactly, just add blocks state
@@ -45,22 +59,24 @@ export function DashboardClient({ user }: Props) {
           
           <div className="relative backdrop-blur-xl bg-gradient-to-b from-white/[0.11] to-black/[0.02] rounded-lg border border-white/[0.09] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)] p-8">
             <div className="space-y-1.5 mb-8">
-              <h2 className="text-base font-semibold tracking-[-0.02em] text-white/90 select-none hover:text-white transition-colors font-inter">Brain Dump</h2>
-              <p className="text-[13px] leading-relaxed text-white/60 select-none font-inter font-normal">What do you want to accomplish today?</p>
+              <BrainDumpInput onTransform={handleBrainDumpTransform} />
             </div>
-            <BrainDumpInput onTransform={setBlocks} />
           </div>
 
           <div className="relative backdrop-blur-xl bg-gradient-to-b from-white/[0.08] to-black/[0.02] rounded-lg border border-white/[0.09] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] p-8">
-            <div className="space-y-1.5 mb-8">
-              <h2 className="text-base font-semibold tracking-[-0.02em] text-white/90 select-none hover:text-white transition-colors font-inter">Today's Focus</h2>
-              <p className="text-[13px] leading-relaxed text-white/60 select-none font-inter font-normal">Your deep work schedule</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold tracking-[-0.02em] text-white/90">Today's Focus</h2>
+                <p className="text-[13px] text-white/60">Your deep work schedule</p>
+              </div>
+              <BlockList 
+                blocks={blocks}
+                invalidBlocks={invalidBlocks}
+                onCreateBlock={handleCreateBlock} 
+                onClearBlocks={handleClearBlocks}
+                onDeleteBlock={handleDeleteBlock}
+              />
             </div>
-            <BlockList 
-              blocks={blocks} 
-              onCreateBlock={handleCreateBlock} 
-              onClearBlocks={handleClearBlocks}
-            />
           </div>
         </div>
       </main>

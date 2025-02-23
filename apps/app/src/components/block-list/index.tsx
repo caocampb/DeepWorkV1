@@ -7,6 +7,7 @@ import {
   START_HOUR,
   END_HOUR,
   formatHour,
+  formatTime,
   getBlockPosition,
   getBlockHeight,
   getGridLines,
@@ -14,12 +15,17 @@ import {
   validateBlock,
   snapToGrid
 } from '@/lib/time-system'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 interface BlockListProps {
   blocks: Block[]
+  invalidBlocks?: Array<{
+    block: Partial<Block>
+    reason: string
+  }>
   onCreateBlock?: (block: Omit<Block, 'id'>) => void
   onClearBlocks?: () => void
+  onDeleteBlock?: (id: string) => void
 }
 
 // Helper to format time in 12-hour format
@@ -64,6 +70,50 @@ function TimeAxis() {
   )
 }
 
+function CurrentTimeLine() {
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const currentHour = now.getHours()
+  const currentMinutes = now.getMinutes()
+  
+  if (currentHour < START_HOUR || currentHour >= END_HOUR) {
+    return null
+  }
+
+  const position = ((currentHour - START_HOUR) * PIXELS_PER_HOUR) + 
+                  ((currentMinutes / 60) * PIXELS_PER_HOUR)
+
+  const timeDisplay = `${currentHour % 12 || 12}:${String(currentMinutes).padStart(2, '0')}${currentHour < 12 ? 'a' : 'p'}`
+
+  return (
+    <>
+      {/* Time label - positioned in the axis area */}
+      <div 
+        className="absolute -left-[42px] flex items-center pointer-events-none"
+        style={{ top: position - 6 }}
+      >
+        <div className="text-[11px] font-mono text-indigo-400 font-medium tabular-nums tracking-tight">
+          {timeDisplay}
+        </div>
+      </div>
+
+      {/* Line - positioned in the main area */}
+      <div 
+        className="absolute inset-x-0 flex items-center pointer-events-none"
+        style={{ top: position }}
+      >
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-indigo-400/60 to-indigo-400/30 shadow-[0_0_2px_rgba(129,140,248,0.3)]" />
+        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/60 -translate-x-[2px]" />
+      </div>
+    </>
+  )
+}
+
 function snapTimeToGrid(time: string): string {
   const [hours = "00", minutes = "00"] = time.split(':');
   const date = new Date();
@@ -72,12 +122,19 @@ function snapTimeToGrid(time: string): string {
   return `${String(snappedDate.getHours()).padStart(2, '0')}:${String(snappedDate.getMinutes()).padStart(2, '0')}`;
 }
 
-export function BlockList({ blocks, onCreateBlock, onClearBlocks }: BlockListProps) {
+export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks, onDeleteBlock }: BlockListProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [timeInput, setTimeInput] = useState('')
   const [period, setPeriod] = useState('am')
   const [error, setError] = useState<string | null>(null)
+  const [showReasoning, setShowReasoning] = useState(false)
   const isEmpty = !blocks?.length
+
+  function handleDelete(id: string) {
+    if (onDeleteBlock) {
+      onDeleteBlock(id)
+    }
+  }
 
   // Convert 12h to 24h format for storage
   function to24Hour(time: string, p: string): string {
@@ -245,6 +302,171 @@ export function BlockList({ blocks, onCreateBlock, onClearBlocks }: BlockListPro
         </button>
       </div>
 
+      {/* Timeline */}
+      <div className="flex gap-8">
+        <div className="flex-1 flex gap-4">
+          <TimeAxis />
+          <div 
+            className="flex-1 relative rounded-lg border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden" 
+            style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}
+          > 
+            {/* Grid lines */}
+            {gridLines.map(({ position, isHour }, i) => (
+              <div 
+                key={i}
+                className={`absolute left-0 right-0 border-t ${
+                  isHour ? 'border-white/[0.08]' : 'border-white/[0.04]'
+                }`}
+                style={{ top: position }}
+              />
+            ))}
+            
+            {/* Blocks */}
+            {sortedBlocks.map(block => (
+              <div
+                key={block.id}
+                className="absolute inset-x-0"
+                style={{ 
+                  top: getBlockPosition(block),
+                  height: getBlockHeight(block.duration)
+                }}
+              >
+                <TimeBlock block={block} onDelete={handleDelete} />
+              </div>
+            ))}
+
+            {/* Current time line */}
+            <div className="relative z-50">
+              <CurrentTimeLine />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reasoning Panel Toggle */}
+      {blocks.length > 0 && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowReasoning(prev => !prev)}
+            className="w-full group px-4 py-3 rounded-md
+                     bg-gradient-to-b from-white/[0.02] to-transparent
+                     hover:from-white/[0.04] hover:to-transparent
+                     focus:from-white/[0.05] focus:to-white/[0.02]
+                     transition-all duration-300 ease-out
+                     flex items-center justify-between
+                     hover:translate-y-[-1px] active:translate-y-0"
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center w-5 h-5">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400/10 to-purple-400/10 blur-md" />
+                <div className="relative w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-blue-400/40 to-purple-400/30 ring-1 ring-white/[0.03]" />
+              </div>
+              <span className="text-[13px] text-white/60 tracking-tight font-medium group-hover:text-white/70 transition-colors">
+                View Schedule Reasoning
+              </span>
+            </div>
+            <div className={`transform transition-all duration-300 ease-out ${showReasoning ? 'rotate-180 translate-y-[1px] text-white/40' : 'text-white/30'}`}>
+              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" className="group-hover:text-white/40 transition-colors">
+                <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </button>
+
+          {/* Reasoning Content */}
+          <div className={`transform-gpu transition-all duration-300 ease-out overflow-hidden
+                        ${showReasoning ? 'max-h-[1000px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-[-8px]'}`}>
+            <div className="mt-3 space-y-6 rounded-lg bg-gradient-to-b from-white/[0.02] to-transparent p-6">
+              {/* Successful Scheduling */}
+              <div className="space-y-4">
+                {sortedBlocks.map(block => (
+                  <div key={block.id} className="group">
+                    {/* Time + Task */}
+                    <div className="flex items-baseline justify-between gap-2 mb-1">
+                      <div className="text-sm text-white/80 font-medium tracking-tight">
+                        {block.task}
+                      </div>
+                      <div className="text-xs text-white/40 font-mono tabular-nums tracking-tight">
+                        {formatTime(new Date(block.startTime))}
+                      </div>
+                    </div>
+
+                    {/* Type Indicator + Duration */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`h-[3px] w-[18px] rounded-full ${
+                        block.type === 'deep' ? 'bg-gradient-to-r from-blue-400/70 to-blue-500/70' :
+                        block.type === 'shallow' ? 'bg-gradient-to-r from-purple-400/50 to-purple-500/50' :
+                        'bg-gradient-to-r from-green-400/50 to-green-500/50'
+                      }`} />
+                      <div className="text-[11px] text-white/40 font-mono tracking-tight">
+                        {block.duration}min {block.type === 'deep' ? 'focused' : block.type} work
+                      </div>
+                    </div>
+
+                    {/* Reasoning - More emphasis on deep work principles */}
+                    <div className="pl-6 border-l border-white/[0.08] group-hover:border-white/[0.12] transition-colors">
+                      <div className="text-xs text-white/50 italic leading-relaxed">
+                        {block.type === 'deep' ? (
+                          <span className="text-blue-400/70">"</span>
+                        ) : block.type === 'shallow' ? (
+                          <span className="text-purple-400/70">"</span>
+                        ) : (
+                          <span className="text-green-400/70">"</span>
+                        )}
+                        {block.reason || 'Scheduled based on availability'}
+                        {block.type === 'deep' ? (
+                          <span className="text-blue-400/70">"</span>
+                        ) : block.type === 'shallow' ? (
+                          <span className="text-purple-400/70">"</span>
+                        ) : (
+                          <span className="text-green-400/70">"</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Scheduling Conflicts */}
+              {invalidBlocks && invalidBlocks.length > 0 && (
+                <div className="mt-8 pt-8 border-t border-white/[0.08]">
+                  <div className="space-y-1 mb-4">
+                    <h3 className="text-sm font-medium tracking-tight text-red-400/80">Couldn't Schedule</h3>
+                    <p className="text-xs text-white/40">Tasks that need adjustment</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {invalidBlocks.map((invalid, i) => (
+                      <div key={i} className="group">
+                        {/* Task */}
+                        <div className="text-sm text-red-400/70 font-medium tracking-tight mb-1">
+                          {invalid.block.task}
+                        </div>
+
+                        {/* Type Indicator + Duration */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className={`h-[3px] w-[18px] rounded-full bg-red-400/40`} />
+                          <div className="text-[11px] text-white/40 font-mono tracking-tight">
+                            {invalid.block.duration}min {invalid.block.type} work
+                          </div>
+                        </div>
+
+                        {/* Reasoning */}
+                        <div className="pl-6 border-l border-red-400/20 group-hover:border-red-400/30 transition-colors">
+                          <div className="text-xs text-red-400/60 italic">
+                            "{invalid.reason}"
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Creation Form */}
       {isCreating && (
         <div className="mt-4 rounded-lg bg-[#1C1C1C] border border-white/[0.08] relative">
           <form className="p-4" onSubmit={handleCreateBlock}>
@@ -327,39 +549,6 @@ export function BlockList({ blocks, onCreateBlock, onClearBlocks }: BlockListPro
           </form>
         </div>
       )}
-
-      <div className="mt-4 flex gap-4">
-        <TimeAxis />
-        <div 
-          className="flex-1 relative rounded-lg border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden" 
-          style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}
-        > 
-          {/* Time grid lines */}
-          {gridLines.map(({ position, isHour }, i) => (
-            <div 
-              key={i}
-              className={`absolute left-0 right-0 border-t ${
-                isHour ? 'border-white/[0.08]' : 'border-white/[0.04]'
-              }`}
-              style={{ top: position }}
-            />
-          ))}
-          
-          {/* Blocks */}
-          {sortedBlocks.map(block => (
-            <div
-              key={block.id}
-              className="absolute inset-x-0"
-              style={{ 
-                top: getBlockPosition(block),
-                height: getBlockHeight(block.duration)
-              }}
-            >
-              <TimeBlock block={block} />
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

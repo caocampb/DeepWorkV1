@@ -5,6 +5,7 @@ import { formatTime, getBlockTimeRange } from '@/lib/time-system'
 
 interface TimeBlockProps {
   block: Block
+  onDelete?: (id: string) => void
 }
 
 const typeStyles = {
@@ -25,22 +26,33 @@ const typeStyles = {
   }
 }
 
-export function TimeBlock({ block }: TimeBlockProps) {
+export function TimeBlock({ block, onDelete }: TimeBlockProps) {
   const { start, end } = getBlockTimeRange(block)
   const styles = typeStyles[block.type]
   
   return (
     <div 
-      className={`group h-full w-full border rounded-lg px-4 py-2.5
+      className={`group relative h-full w-full border rounded-lg px-4 py-2.5
                  backdrop-blur-sm backdrop-saturate-150
                  transition-all duration-150 ease-out
                  ${styles.container}`}
     >
       <div className="flex items-center gap-2">
         <div className={`w-1.5 h-1.5 rounded-full ${styles.indicator}`} />
-        <div className={`text-sm font-medium tracking-[-0.01em] ${styles.text}`}>
+        <div className={`flex-1 text-sm font-medium tracking-[-0.01em] ${styles.text}`}>
           {block.task}
         </div>
+        {onDelete && (
+          <button
+            onClick={() => onDelete(block.id)}
+            className="opacity-0 group-hover:opacity-100
+                      text-[11px] text-red-400/40 hover:text-red-400/90
+                      transition-all duration-150 ease-out
+                      hover:translate-y-[-0.5px]"
+          >
+            Delete
+          </button>
+        )}
       </div>
       <div className="text-[11px] text-white/40 font-mono mt-1.5 tabular-nums tracking-tight">
         {formatTime(start)} — {formatTime(end)}
