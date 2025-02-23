@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useCallback, KeyboardEvent, useRef, useEffect } from 'react'
+import { useState, useCallback, KeyboardEvent, useRef } from 'react'
 import { Button } from "@v1/ui/button"
 import { Icons } from "@v1/ui/icons"
 import { type Block } from '@/lib/types'
-
-// Regex for time markers like "2pm", "14:00", etc
-const TIME_REGEX = /\b((1[0-2]|0?[1-9]):[0-5][0-9]([ap]m)?|(1[0-2]|0?[1-9])([ap]m))\b/gi
 
 interface BrainDumpInputProps {
   onTransform: (result: { 
@@ -18,10 +15,9 @@ interface BrainDumpInputProps {
 export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
   const [text, setText] = useState('')
   const [isTransforming, setIsTransforming] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
   const [charCount, setCharCount] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  
+
   const handleTransform = useCallback(async () => {
     if (!text.trim() || isTransforming) return
     
@@ -53,22 +49,6 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
     }
   }
 
-  // Sync the display div with textarea scroll
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    
-    const handleScroll = () => {
-      const display = textarea.nextElementSibling as HTMLElement
-      if (display) {
-        display.scrollTop = textarea.scrollTop
-      }
-    }
-    
-    textarea.addEventListener('scroll', handleScroll)
-    return () => textarea.removeEventListener('scroll', handleScroll)
-  }, [])
-
   return (
     <div className="space-y-8">
       {/* Brain Dump Section */}
@@ -82,9 +62,12 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
           <textarea
             ref={textareaRef}
             value={text}
-            onChange={(e) => {
-              setText(e.target.value)
-              setCharCount(e.target.value.length)
+            onChange={e => {
+              const newText = e.target.value
+              if (newText.length <= 1000) {
+                setText(newText)
+                setCharCount(newText.length)
+              }
             }}
             onKeyDown={handleKeyDown}
             placeholder="Example:
@@ -98,21 +81,22 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
                      transition-all duration-200 ease-out
                      group-hover:border-white/[0.11] group-hover:bg-black/70
                      selection:bg-white/10
-                     text-white/90 placeholder:text-white/40"
+                     text-transparent caret-white placeholder:text-white/40"
           />
           
-          {/* Time markers overlay - absolute positioned but pointer-events-none */}
+          {/* Time markers overlay */}
           <div 
-            className="absolute inset-0 w-full h-48 p-4 pointer-events-none font-mono text-sm"
+            className="absolute inset-0 w-full h-48 p-4 pointer-events-none font-mono text-sm text-white/90"
             aria-hidden="true"
           >
-            {text && (
-              <div dangerouslySetInnerHTML={{ 
-                __html: text.split('\n').map(line => 
-                  line.replace(TIME_REGEX, match => `<span class="text-blue-400/70">${match}</span>`)
-                ).join('\n')
-              }} className="opacity-0 [&_span]:opacity-100 whitespace-pre-wrap" />
-            )}
+            <div 
+              dangerouslySetInnerHTML={{ 
+                __html: text.replace(/\n/g, '<br/>').replace(/\b((1[0-2]|0?[1-9])(?::[0-5][0-9])?(?:-(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?)?(?:am|pm))\b|\b(1[0-2]|0?[1-9])\s*(?:a\.m\.|p\.m\.)\b/gi, 
+                  match => `<span class="bg-blue-500/20 text-blue-200 px-0.5 rounded font-medium">${match}</span>`
+                )
+              }}
+              className="whitespace-pre-wrap"
+            />
           </div>
           
           {/* Character count */}

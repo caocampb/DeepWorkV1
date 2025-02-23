@@ -302,6 +302,90 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
         </button>
       </div>
 
+      {/* Creation Form - Moved above the timeline */}
+      {isCreating && (
+        <div className="mb-4 rounded-lg bg-[#1C1C1C] border border-white/[0.08] relative">
+          <form className="p-4" onSubmit={handleCreateBlock}>
+            <div className="text-[13px] text-white/40 mb-2">Task</div>
+            {error && (
+              <div className="text-red-400/90 text-sm mb-3">
+                {error}
+              </div>
+            )}
+            <input
+              name="task"
+              type="text"
+              required
+              autoFocus
+              placeholder="Enter a focused task for deep work..."
+              className="w-full bg-[#252525] border-none rounded px-3 py-2 text-white/90 placeholder-white/30 text-sm focus:outline-none mb-3"
+            />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between bg-white/[0.04] hover:bg-white/[0.06] rounded px-3 py-2 text-white/80 hover:text-white/90 transition-colors group relative min-w-[120px]">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="HH:mm"
+                    maxLength={5}
+                    value={timeInput}
+                    onChange={handleTimeInput}
+                    className="bg-transparent border-none text-white/80 text-sm font-mono focus:outline-none w-[52px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePeriod}
+                    className="text-white/60 hover:text-white/80 text-xs uppercase transition-colors w-[24px] text-left"
+                  >
+                    {period}
+                  </button>
+                </div>
+                <svg 
+                  width="13" 
+                  height="13" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  className="text-white/30 group-hover:text-white/40 transition-colors flex-shrink-0 ml-2"
+                  strokeWidth="1.5"
+                >
+                  <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-white/[0.04] rounded px-3 py-2">
+                <input
+                  name="duration"
+                  type="number"
+                  required
+                  defaultValue={30}
+                  min="5"
+                  step="5"
+                  className="bg-transparent border-none text-white/80 text-sm w-8 focus:outline-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
+                />
+                <span className="text-white/40 text-sm">min</span>
+              </div>
+
+              <select 
+                name="type"
+                className="bg-white/[0.04] border-none rounded px-3 py-2 text-white/80 text-sm focus:outline-none cursor-pointer min-w-[110px]"
+                defaultValue="deep"
+              >
+                <option value="deep">Deep Work</option>
+                <option value="shallow">Shallow Work</option>
+                <option value="break">Break</option>
+              </select>
+
+              <button 
+                type="submit"
+                className="ml-auto text-sm text-white/90 hover:text-white transition-colors"
+              >
+                Add →
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Timeline */}
       <div className="flex gap-8">
         <div className="flex-1 flex gap-4">
@@ -463,90 +547,6 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
               )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Creation Form */}
-      {isCreating && (
-        <div className="mt-4 rounded-lg bg-[#1C1C1C] border border-white/[0.08] relative">
-          <form className="p-4" onSubmit={handleCreateBlock}>
-            <div className="text-[13px] text-white/40 mb-2">Task</div>
-            {error && (
-              <div className="text-red-400/90 text-sm mb-3">
-                {error}
-              </div>
-            )}
-            <input
-              name="task"
-              type="text"
-              required
-              autoFocus
-              placeholder="Enter a focused task for deep work..."
-              className="w-full bg-[#252525] border-none rounded px-3 py-2 text-white/90 placeholder-white/30 text-sm focus:outline-none mb-3"
-            />
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-between bg-white/[0.04] hover:bg-white/[0.06] rounded px-3 py-2 text-white/80 hover:text-white/90 transition-colors group relative min-w-[120px]">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="HH:mm"
-                    maxLength={5}
-                    value={timeInput}
-                    onChange={handleTimeInput}
-                    className="bg-transparent border-none text-white/80 text-sm font-mono focus:outline-none w-[52px]"
-                  />
-                  <button
-                    type="button"
-                    onClick={togglePeriod}
-                    className="text-white/60 hover:text-white/80 text-xs uppercase transition-colors w-[24px] text-left"
-                  >
-                    {period}
-                  </button>
-                </div>
-                <svg 
-                  width="13" 
-                  height="13" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  className="text-white/30 group-hover:text-white/40 transition-colors flex-shrink-0 ml-2"
-                  strokeWidth="1.5"
-                >
-                  <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-white/[0.04] rounded px-3 py-2">
-                <input
-                  name="duration"
-                  type="number"
-                  required
-                  defaultValue={30}
-                  min="5"
-                  step="5"
-                  className="bg-transparent border-none text-white/80 text-sm w-8 focus:outline-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
-                />
-                <span className="text-white/40 text-sm">min</span>
-              </div>
-
-              <select 
-                name="type"
-                className="bg-white/[0.04] border-none rounded px-3 py-2 text-white/80 text-sm focus:outline-none cursor-pointer min-w-[110px]"
-                defaultValue="deep"
-              >
-                <option value="deep">Deep Work</option>
-                <option value="shallow">Shallow Work</option>
-                <option value="break">Break</option>
-              </select>
-
-              <button 
-                type="submit"
-                className="ml-auto text-sm text-white/90 hover:text-white transition-colors"
-              >
-                Add →
-              </button>
-            </div>
-          </form>
         </div>
       )}
     </div>

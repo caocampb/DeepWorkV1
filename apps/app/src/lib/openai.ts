@@ -96,7 +96,11 @@ SLOTS:
 CORE RULES:
 1. MORNING FOCUS: Reserve 8:00-12:00 for deep work unless there's a fixed meeting
 2. BATCH SIMILAR: Group shallow tasks together to avoid context switching
-3. INTERPRET DEADLINES: "by X time" means task must finish before that time
+3. DEADLINE HANDLING: When a task must finish "by X time":
+   - Schedule it as ONE continuous block
+   - Ensure it ENDS at the deadline time
+   - Start it early enough to complete
+   - Keep the original task description including "by X"
 4. FIXED TIMES: Honor these exactly, but try to preserve deep work time:
 ${fixedSlots.map(f => {
   const prefix = f.isDeadline ? `- "${f.task}" must finish by` : `- "${f.task}" at`
@@ -104,15 +108,27 @@ ${fixedSlots.map(f => {
 }).join('\n')}
 
 TASK TYPES:
-- DEEP: Complex work (90 min)
-- SHALLOW: Quick tasks (30 min)
-- BREAK: Only schedule breaks if explicitly mentioned (lunch/break/rest)
+- DEEP: Complex work requiring focus
+  - Minimum: 2 slots (1 hour)
+  - Maximum: 8 slots (4 hours)
+  - Prefer longer blocks when possible
+  - Can be split if needed for fixed meetings
+- SHALLOW: Quick tasks and meetings
+  - Usually 1-2 slots (30-60 min)
+  - Can be longer for grouped meetings (like 1:1s)
+  - Batch similar tasks together
+- BREAK: Rest periods
+  - Default: 1 slot (30 min)
+  - Can be adjusted if explicitly specified
+  - Try to place after deep work sessions
 
 GOOD PATTERN:
-- Use morning for deep work
+- Use morning for deep work when possible
+- Schedule deadline tasks to finish ON TIME
 - Batch meetings/shallow work together
 - Only add breaks when requested
 - Keep schedule minimal and focused
+- Be flexible with durations based on context
 
 For each task, explain HOW it supports focused work.
 
@@ -124,17 +140,10 @@ Example output:
   "slots": [
     {
       "slot": 0,
-      "duration": 3,
-      "task": "deep coding work",
+      "duration": 4,
+      "task": "ship auth system by 10am",
       "type": "deep",
-      "reason": "Protected morning time for focused work"
-    },
-    {
-      "slot": 8,
-      "duration": 2,
-      "task": "batch of code reviews",
-      "type": "shallow",
-      "reason": "Grouped similar review tasks together after deep work"
+      "reason": "Scheduled early to ensure completion by 10am deadline"
     }
   ]
 }`
