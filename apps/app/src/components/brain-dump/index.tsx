@@ -3,11 +3,16 @@
 import { useState, useCallback, KeyboardEvent, useRef, useEffect } from 'react'
 import { Button } from "@v1/ui/button"
 import { Icons } from "@v1/ui/icons"
+import { type Block } from '@/lib/types'
 
 // Regex for time markers like "2pm", "14:00", etc
 const TIME_REGEX = /\b((1[0-2]|0?[1-9]):[0-5][0-9]([ap]m)?|(1[0-2]|0?[1-9])([ap]m))\b/gi
 
-export function BrainDumpInput() {
+interface BrainDumpInputProps {
+  onTransform: (blocks: Block[]) => void
+}
+
+export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
   const [text, setText] = useState('')
   const [isTransforming, setIsTransforming] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -25,17 +30,21 @@ export function BrainDumpInput() {
     setIsTransforming(true)
     
     try {
-      console.log('Brain dump input:', text)
-      // TODO: Add actual transform logic
-      await new Promise(r => setTimeout(r, 1000)) // Simulate API call
+      const res = await fetch('/api/brain-dump', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      })
       
-      // Remove success flash state
-      // setShowSuccess(true)
-      // setTimeout(() => setShowSuccess(false), 1000)
+      const result = await res.json()
+      
+      if (result.success && result.data) {
+        onTransform(result.data)
+      }
     } finally {
       setIsTransforming(false)
     }
-  }, [text, isTransforming])
+  }, [text, isTransforming, onTransform])
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

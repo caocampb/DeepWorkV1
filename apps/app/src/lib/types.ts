@@ -44,9 +44,16 @@ export type ValidBlock = z.infer<typeof blockSchema>
 export type BrainDumpInput = z.infer<typeof brainDumpSchema>
 
 // Result type for error handling
-export type Result<T> = 
-  | { success: true; data: T }
-  | { success: false; error: string }
+export interface Result<T> {
+  success: boolean
+  data?: T
+  error?: string
+  warnings?: string[]  // Add warnings for partial success
+  invalidBlocks?: {    // Add structured invalid block info
+    block: Partial<Block>
+    reason: string
+  }[]
+}
 
 // Block utils
 export function formatTime(time: string): string {

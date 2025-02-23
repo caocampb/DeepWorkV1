@@ -7,12 +7,37 @@ export const START_HOUR = 8   // 8 AM
 export const END_HOUR = 20    // 8 PM
 export const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * PIXELS_PER_HOUR
 
-// Basic types
-export interface TimeRange {
-  start: Date
-  end: Date
+// Simple time extraction - just find HH:MM or HH(am/pm)
+export function findFixedTimes(input: string): { time: string; task: string }[] {
+  const fixedTimes: { time: string; task: string }[] = []
+  const lines = input.split('\n')
+
+  for (const line of lines) {
+    // Match "HH:MM" or "HH(am|pm)" or "HH:MM(am|pm)"
+    const match = line.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i)
+    if (match) {
+      const [_, hours, minutes = '00', meridian = ''] = match
+      let hour = parseInt(hours || '0')
+      
+      // Convert to 24hr
+      if (meridian.toLowerCase() === 'pm' && hour < 12) hour += 12
+      if (meridian.toLowerCase() === 'am' && hour === 12) hour = 0
+      
+      // Round to nearest 30
+      const mins = parseInt(minutes)
+      const roundedMins = Math.round(mins / 30) * 30
+      
+      const time = `${hour.toString().padStart(2, '0')}:${roundedMins.toString().padStart(2, '0')}`
+      const task = line.replace(match[0], '').trim()
+      
+      fixedTimes.push({ time, task })
+    }
+  }
+  
+  return fixedTimes
 }
 
+// Basic types
 export interface Block {
   id: string
   startTime: string
@@ -34,8 +59,14 @@ export function snapToGrid(date: Date): Date {
   return snapped
 }
 
+// Convert UTC time to local hour for validation
+function getLocalHour(date: Date): number {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return localDate.getUTCHours() + (localDate.getUTCMinutes() / 60)
+}
+
 // Time slot validation
-export function getBlockTimeRange(block: Block): TimeRange {
+export function getBlockTimeRange(block: Block): { start: Date; end: Date } {
   const start = snapToGrid(new Date(block.startTime))
   const end = new Date(start.getTime() + block.duration * 60000)
   return { start, end }
@@ -48,15 +79,11 @@ export function validateBlock(
 ): BlockValidationError | null {
   const { start: newStart, end: newEnd } = getBlockTimeRange(newBlock)
 
-  // Validate within day bounds
-  const startHour = newStart.getHours()
-  const endHour = newEnd.getHours()
-  const endMinutes = newEnd.getMinutes()
+  // Convert UTC times to local for validation
+  const startHour = getLocalHour(newStart)
+  const endHour = getLocalHour(newEnd)
   
-  // Convert end time to decimal hours for comparison (e.g., 8:30 = 8.5)
-  const endTimeInHours = endHour + (endMinutes / 60)
-  
-  if (startHour < START_HOUR || endTimeInHours > END_HOUR) {
+  if (startHour < START_HOUR || endHour > END_HOUR) {
     return { type: 'OUT_OF_BOUNDS' }
   }
 
@@ -73,14 +100,6 @@ export function validateBlock(
   }
 
   return null
-}
-
-export function isValidBlock(
-  newBlock: Block, 
-  existingBlocks: Block[],
-  ignoreId?: string
-): boolean {
-  return validateBlock(newBlock, existingBlocks, ignoreId) === null
 }
 
 // Position calculations
