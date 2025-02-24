@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, KeyboardEvent, useRef } from 'react'
+import { useState, useCallback, KeyboardEvent, useRef, useEffect, useMemo } from 'react'
 import { Button } from "@v1/ui/button"
 import { Icons } from "@v1/ui/icons"
 import { type Block } from '@/lib/types'
@@ -12,11 +12,42 @@ interface BrainDumpInputProps {
   }) => void
 }
 
+function useTimeHighlight(text: string) {
+  return useMemo(() => {
+    return text.replace(
+      /\b((1[0-2]|0?[1-9])(?::[0-5][0-9])?(?:-(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?)?(?:am|pm))\b|\b(1[0-2]|0?[1-9])\s*(?:a\.m\.|p\.m\.)\b/gi,
+      match => `<span class="bg-blue-500/20 text-blue-200 px-0.5 rounded font-medium">${match}</span>`
+    )
+  }, [text])
+}
+
 export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
   const [text, setText] = useState('')
   const [isTransforming, setIsTransforming] = useState(false)
   const [charCount, setCharCount] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const highlightRef = useRef<HTMLDivElement>(null)
+  const highlightedText = useTimeHighlight(text || ' ')
+
+  // Sync scroll position
+  useEffect(() => {
+    const textarea = textareaRef.current
+    const highlight = highlightRef.current
+    if (!textarea || !highlight) return
+
+    const syncScroll = () => {
+      highlight.scrollTop = textarea.scrollTop
+    }
+
+    textarea.addEventListener('scroll', syncScroll)
+    return () => textarea.removeEventListener('scroll', syncScroll)
+  }, [])
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      handleTransform()
+    }
+  }
 
   const handleTransform = useCallback(async () => {
     if (!text.trim() || isTransforming) return
@@ -43,12 +74,6 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
     }
   }, [text, isTransforming, onTransform])
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      handleTransform()
-    }
-  }
-
   return (
     <div className="space-y-8">
       {/* Brain Dump Section */}
@@ -59,6 +84,17 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
         </div>
         
         <div className="relative group">
+          {/* Highlighted text layer */}
+          <div 
+            ref={highlightRef}
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-48 p-4 bg-black/60 rounded-lg border border-white/[0.08] font-mono text-sm
+                     pointer-events-none whitespace-pre-wrap overflow-y-scroll [scrollbar-width:none] [-ms-overflow-style:none]
+                     [&::-webkit-scrollbar]:hidden"
+            dangerouslySetInnerHTML={{ __html: highlightedText }}
+          />
+
+          {/* Input layer */}
           <textarea
             ref={textareaRef}
             value={text}
@@ -76,28 +112,15 @@ export function BrainDumpInput({ onTransform }: BrainDumpInputProps) {
 - Team sync 2pm sharp
 - Deploy new docs site
 - 30min break after deep work"
-            className="w-full h-48 p-4 bg-black/60 rounded-lg border border-white/[0.08] resize-none font-mono text-sm
+            className="relative w-full h-48 p-4 bg-transparent rounded-lg border border-white/[0.08] resize-none font-mono text-sm
                      focus:outline-none focus:ring-1 focus:ring-white/[0.12] focus:border-white/[0.12]
                      transition-all duration-200 ease-out
-                     group-hover:border-white/[0.11] group-hover:bg-black/70
-                     selection:bg-white/10
-                     text-transparent caret-white placeholder:text-white/40"
+                     group-hover:border-white/[0.11]
+                     text-transparent caret-white placeholder:text-white/40
+                     overflow-y-scroll [scrollbar-width:none] [-ms-overflow-style:none]
+                     [&::-webkit-scrollbar]:hidden"
+            spellCheck={false}
           />
-          
-          {/* Time markers overlay */}
-          <div 
-            className="absolute inset-0 w-full h-48 p-4 pointer-events-none font-mono text-sm text-white/90"
-            aria-hidden="true"
-          >
-            <div 
-              dangerouslySetInnerHTML={{ 
-                __html: text.replace(/\n/g, '<br/>').replace(/\b((1[0-2]|0?[1-9])(?::[0-5][0-9])?(?:-(?:1[0-2]|0?[1-9])(?::[0-5][0-9])?)?(?:am|pm))\b|\b(1[0-2]|0?[1-9])\s*(?:a\.m\.|p\.m\.)\b/gi, 
-                  match => `<span class="bg-blue-500/20 text-blue-200 px-0.5 rounded font-medium">${match}</span>`
-                )
-              }}
-              className="whitespace-pre-wrap"
-            />
-          </div>
           
           {/* Character count */}
           <div className="absolute bottom-2 right-2 text-[10px] tabular-nums font-mono text-white/40">

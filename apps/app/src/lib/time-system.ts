@@ -9,26 +9,15 @@ export const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * PIXELS_PER_HOUR
 
 // Simple time extraction - just find HH:MM or HH(am|pm)
 export function findFixedTimes(input: string): { time: string; task: string; isDeadline?: boolean }[] {
-  // Test cases:
-  // "9am" -> "09:00"
-  // "9:30am" -> "09:30"
-  // "2pm" -> "14:00"
-  // "2:30pm" -> "14:30"
-  // "team meeting at 2pm" -> "14:00", "team meeting"
-  // "2 in the afternoon" -> "14:00"
-  // "12pm" -> "12:00" (noon)
-  // "12am" -> "00:00" (midnight)
-  // "ship auth by 10am" -> "10:00", "ship auth", isDeadline: true
-  
   const fixedTimes: { time: string; task: string; isDeadline?: boolean }[] = []
   const lines = input.split('\n')
 
   for (const line of lines) {
-    // Match "HH:MM" or "HH(am|pm)" or "HH:MM(am|pm)"
-    const match = line.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i)
-    if (match) {
-      const [_, hours, minutes = '00', meridian = ''] = match
-      let hour = parseInt(hours || '0')
+    // Find any time mentioned (3pm, 15:30, 3:45pm, etc)
+    const timeMatch = line.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i)
+    if (timeMatch && timeMatch[1]) {  // Ensure hours exists
+      const [fullMatch, hours, minutes = '00', meridian = ''] = timeMatch
+      let hour = parseInt(hours)
       
       // Convert to 24hr
       const isPM = meridian.toLowerCase() === 'pm' || 
@@ -37,17 +26,11 @@ export function findFixedTimes(input: string): { time: string; task: string; isD
       if (isPM && hour < 12) hour += 12
       if (meridian.toLowerCase() === 'am' && hour === 12) hour = 0
       
-      // Round to nearest 30
-      const mins = parseInt(minutes)
-      const roundedMins = Math.round(mins / 30) * 30
+      const time = `${hour.toString().padStart(2, '0')}:${minutes}`
+      const task = line.replace(fullMatch, '').trim()
       
-      const time = `${hour.toString().padStart(2, '0')}:${roundedMins.toString().padStart(2, '0')}`
-      const task = line.replace(match[0], '').trim()
-      
-      // Check if this is a deadline ("by X" or "before X")
-      const isDeadline = /\b(by|before)\b/i.test(line)
-      
-      fixedTimes.push({ time, task, isDeadline })
+      // If it has a time, it's a fixed commitment
+      fixedTimes.push({ time, task, isDeadline: /\b(by|before)\b/i.test(line) })
     }
   }
   
@@ -66,6 +49,7 @@ export interface Block {
 export type BlockValidationError = 
   | { type: 'OUT_OF_BOUNDS' }
   | { type: 'OVERLAP'; conflictingBlock: Block }
+  | { type: 'INVALID_DURATION'; min: number; max: number }
 
 // Time grid system
 export function snapToGrid(date: Date): Date {
@@ -94,6 +78,40 @@ export function validateBlock(
   existingBlocks: Block[],
   ignoreId?: string
 ): BlockValidationError | null {
+  // Known fixed event durations
+  const knownDurations: Record<string, number> = {
+    standup: 30,
+    meeting: 30,
+    sync: 30,
+    lunch: 60
+  }
+
+  // Check if this is a known fixed event by task name
+  const matchingFixedEvent = Object.entries(knownDurations).find(([key]) => 
+    newBlock.task.toLowerCase().includes(key)
+  )
+  
+  if (matchingFixedEvent) {
+    const [eventType, expectedDuration] = matchingFixedEvent
+    // Fixed events must be shallow work type with exact duration
+    if (newBlock.type !== 'shallow') {
+      return { type: 'INVALID_DURATION', min: expectedDuration, max: expectedDuration }
+    }
+    if (newBlock.duration !== expectedDuration) {
+      return { type: 'INVALID_DURATION', min: expectedDuration, max: expectedDuration }
+    }
+  } else if (newBlock.type === 'deep') {
+    // Deep work: 60-120 minutes
+    if (newBlock.duration < 60 || newBlock.duration > 120) {
+      return { type: 'INVALID_DURATION', min: 60, max: 120 }
+    }
+  } else if (newBlock.type === 'shallow') {
+    // Regular shallow work: minimum 30 minutes
+    if (newBlock.duration < 30) {
+      return { type: 'INVALID_DURATION', min: 30, max: Infinity }
+    }
+  }
+
   const { start: newStart, end: newEnd } = getBlockTimeRange(newBlock as Block)
 
   // Convert UTC times to local for validation
@@ -162,5 +180,13 @@ export function getGridLines() {
 export function createLocalISOString(hour: number, minute: number): string {
   const date = new Date()
   date.setHours(hour, minute, 0, 0)
+  return date.toISOString()
+}
+
+// Add this helper function
+export function timeStringToISO(timeStr: string): string {
+  const [hours = "00", minutes = "00"] = timeStr.split(':')
+  const date = new Date()
+  date.setHours(parseInt(hours), parseInt(minutes), 0, 0)
   return date.toISOString()
 } 

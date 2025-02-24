@@ -88,29 +88,14 @@ function CurrentTimeLine() {
   const position = ((currentHour - START_HOUR) * PIXELS_PER_HOUR) + 
                   ((currentMinutes / 60) * PIXELS_PER_HOUR)
 
-  const timeDisplay = `${currentHour % 12 || 12}:${String(currentMinutes).padStart(2, '0')}${currentHour < 12 ? 'a' : 'p'}`
-
   return (
-    <>
-      {/* Time label - positioned in the axis area */}
-      <div 
-        className="absolute -left-[42px] flex items-center pointer-events-none"
-        style={{ top: position - 6 }}
-      >
-        <div className="text-[11px] font-mono text-indigo-400 font-medium tabular-nums tracking-tight">
-          {timeDisplay}
-        </div>
-      </div>
-
-      {/* Line - positioned in the main area */}
-      <div 
-        className="absolute inset-x-0 flex items-center pointer-events-none"
-        style={{ top: position }}
-      >
-        <div className="flex-1 h-[1px] bg-gradient-to-r from-indigo-400/60 to-indigo-400/30 shadow-[0_0_2px_rgba(129,140,248,0.3)]" />
-        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/60 -translate-x-[2px]" />
-      </div>
-    </>
+    <div 
+      className="absolute inset-x-0 flex items-center pointer-events-none"
+      style={{ top: position }}
+    >
+      <div className="flex-1 h-[1px] bg-gradient-to-r from-indigo-400/60 to-indigo-400/30 shadow-[0_0_2px_rgba(129,140,248,0.3)]" />
+      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/60 -translate-x-[2px]" />
+    </div>
   )
 }
 
@@ -260,6 +245,16 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
         setError('This time slot overlaps with another block')
         return
       }
+      if (validationError.type === 'INVALID_DURATION') {
+        const blockTypeMessages = {
+          deep: 'Deep work',
+          shallow: 'Shallow work',
+          break: 'Break'
+        }
+        const blockType = blockTypeMessages[newBlock.type]
+        setError(`${blockType} must be between ${validationError.min} and ${validationError.max} minutes`)
+        return
+      }
       return
     }
     
@@ -279,7 +274,7 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
   return (
     <div className="mt-8">
       {/* Header with add button */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 mb-4 sticky top-0 z-10">
         {blocks.length > 0 && onClearBlocks && (
           <button
             onClick={onClearBlocks}
@@ -304,7 +299,7 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
 
       {/* Creation Form - Moved above the timeline */}
       {isCreating && (
-        <div className="mb-4 rounded-lg bg-[#1C1C1C] border border-white/[0.08] relative">
+        <div className="mb-4 rounded-lg bg-[#1C1C1C] border border-white/[0.08] sticky top-12 z-10">
           <form className="p-4" onSubmit={handleCreateBlock}>
             <div className="text-[13px] text-white/40 mb-2">Task</div>
             {error && (
@@ -358,8 +353,8 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
                   type="number"
                   required
                   defaultValue={30}
-                  min="5"
-                  step="5"
+                  min="30"
+                  step="30"
                   className="bg-transparent border-none text-white/80 text-sm w-8 focus:outline-none [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                 />
                 <span className="text-white/40 text-sm">min</span>
@@ -369,6 +364,19 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
                 name="type"
                 className="bg-white/[0.04] border-none rounded px-3 py-2 text-white/80 text-sm focus:outline-none cursor-pointer min-w-[110px]"
                 defaultValue="deep"
+                onChange={(e) => {
+                  const form = e.target.form
+                  if (!form) return
+                  const durationInput = form.querySelector('input[name="duration"]') as HTMLInputElement
+                  if (!durationInput) return
+                  
+                  // Set appropriate default duration based on type
+                  if (e.target.value === 'deep') {
+                    durationInput.value = '60'
+                  } else {
+                    durationInput.value = '30'
+                  }
+                }}
               >
                 <option value="deep">Deep Work</option>
                 <option value="shallow">Shallow Work</option>
@@ -391,7 +399,7 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
         <div className="flex-1 flex gap-4">
           <TimeAxis />
           <div 
-            className="flex-1 relative rounded-lg border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm overflow-hidden" 
+            className="flex-1 relative rounded-lg border border-white/[0.08] bg-white/[0.02] backdrop-blur-sm" 
             style={{ height: (END_HOUR - START_HOUR) * PIXELS_PER_HOUR }}
           > 
             {/* Grid lines */}
@@ -458,8 +466,8 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
 
           {/* Reasoning Content */}
           <div className={`transform-gpu transition-all duration-300 ease-out overflow-hidden
-                        ${showReasoning ? 'max-h-[1000px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-[-8px]'}`}>
-            <div className="mt-3 space-y-6 rounded-lg bg-gradient-to-b from-white/[0.02] to-transparent p-6">
+                        ${showReasoning ? 'max-h-[400px] opacity-100 translate-y-0' : 'max-h-0 opacity-0 translate-y-[-8px]'}`}>
+            <div className="mt-3 space-y-6 rounded-lg bg-gradient-to-b from-white/[0.02] to-transparent p-6 overflow-y-auto max-h-[400px]">
               {/* Successful Scheduling */}
               <div className="space-y-4">
                 {sortedBlocks.map(block => (
@@ -486,7 +494,7 @@ export function BlockList({ blocks, invalidBlocks, onCreateBlock, onClearBlocks,
                       </div>
                     </div>
 
-                    {/* Reasoning - More emphasis on deep work principles */}
+                    {/* Reasoning */}
                     <div className="pl-6 border-l border-white/[0.08] group-hover:border-white/[0.12] transition-colors">
                       <div className="text-xs text-white/50 italic leading-relaxed">
                         {block.type === 'deep' ? (

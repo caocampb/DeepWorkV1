@@ -6,7 +6,7 @@ export interface Block {
   startTime: string    // ISO string
   duration: number     // minutes
   task: string
-  type: 'deep' | 'shallow' | 'break'
+  type: 'deep' | 'shallow'  // Simplified to just two types
   reason?: string     // AI's reasoning for this block's schedule
 }
 
@@ -19,7 +19,6 @@ export interface BrainDump {
   timeContext?: {
     startTime?: string
     endTime?: string
-    fixedBreaks?: Array<{time: string, duration: number}>
   }
 }
 
@@ -27,9 +26,9 @@ export interface BrainDump {
 export const blockSchema = z.object({
   id: z.string(),
   startTime: z.string().datetime(),
-  duration: z.number().min(5),     // Minimum 5 minutes
+  duration: z.number(),     // Remove min(5) since we use 30-min slots
   task: z.string().min(1),
-  type: z.enum(['deep', 'shallow', 'break']),
+  type: z.enum(['deep', 'shallow']),
 })
 
 export const brainDumpSchema = z.object({

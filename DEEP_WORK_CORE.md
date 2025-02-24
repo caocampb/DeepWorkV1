@@ -603,8 +603,8 @@ function TimeBlock({ block, onEdit, onDelete }: TimeBlockProps) {
           <input 
             type="number" 
             defaultValue={block.duration}
-            min={5}
-            step={5}
+            min={30}
+            step={30}
             className="w-16"
           />
         </div>
