@@ -1,5 +1,10 @@
 import "./src/env.mjs";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES Module equivalent of __dirname
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -10,13 +15,14 @@ const nextConfig = {
   webpack: (config, { isServer, dev }) => {
     // Only replace workspace packages in production build
     if (!dev) {
+      const mockPath = path.join(__dirname, 'src/mocks/index.ts');
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@v1/ui': require.resolve('./src/mocks/index.ts') + '?mockUI',
-        '@v1/supabase': require.resolve('./src/mocks/index.ts') + '?mockSupabase',
-        '@v1/analytics': require.resolve('./src/mocks/index.ts') + '?mockAnalytics',
-        '@v1/kv': require.resolve('./src/mocks/index.ts') + '?mockKV',
-        '@v1/logger': require.resolve('./src/mocks/index.ts') + '?mockLogger',
+        '@v1/ui': mockPath,
+        '@v1/supabase': mockPath,
+        '@v1/analytics': mockPath,
+        '@v1/kv': mockPath,
+        '@v1/logger': mockPath,
       };
     }
     
