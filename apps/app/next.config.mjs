@@ -16,13 +16,19 @@ const nextConfig = {
     // Only replace workspace packages in production build
     if (!dev) {
       const mockPath = path.join(__dirname, 'src/mocks');
+      
+      // Handle specific import paths
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@v1/ui': path.join(mockPath, 'ui.ts'),
-        '@v1/supabase': path.join(mockPath, 'supabase.ts'),
-        '@v1/analytics': path.join(mockPath, 'analytics.ts'),
-        '@v1/kv': path.join(mockPath, 'kv.ts'),
-        '@v1/logger': path.join(mockPath, 'logger.ts'),
+        '@v1/ui': path.join(mockPath, 'ui'),
+        '@v1/ui/globals.css': path.join(mockPath, 'ui/globals.css'),
+        '@v1/ui/button': path.join(mockPath, 'ui/button'),
+        '@v1/ui/cn': path.join(mockPath, 'ui/cn'),
+        '@v1/ui/icons': path.join(mockPath, 'ui/icons'),
+        '@v1/supabase': path.join(mockPath, 'supabase'),
+        '@v1/analytics': path.join(mockPath, 'analytics'),
+        '@v1/kv': path.join(mockPath, 'kv'),
+        '@v1/logger': path.join(mockPath, 'logger'),
       };
     }
     
