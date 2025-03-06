@@ -8,7 +8,7 @@
     "clean:workspaces": "turbo clean",
     "dev": "turbo dev --parallel",
     "dev:web": "turbo dev --filter=@v1/web",
-    "dev:jobs": "turbo jobs --filter=@v1/jobs",
+    "dev:jobs": "turbo jobs --filter=@v1/jobs", 
     "dev:app": "turbo dev --filter=@v1/app",
     "start:web": "turbo start --filter=@v1/web",
     "start:app": "turbo start --filter=@v1/app",
@@ -28,5 +28,6 @@
   "packageManager": "bun@1.1.26",
   "dependencies": {
     "openai": "^4.85.4"
-  }
+  },
+  "version": "0.1.0"
 }

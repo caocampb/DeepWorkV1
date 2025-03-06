@@ -15,14 +15,14 @@ const nextConfig = {
   webpack: (config, { isServer, dev }) => {
     // Only replace workspace packages in production build
     if (!dev) {
-      const mockPath = path.join(__dirname, 'src/mocks/index.ts');
+      const mockPath = path.join(__dirname, 'src/mocks');
       config.resolve.alias = {
         ...config.resolve.alias,
-        '@v1/ui': mockPath,
-        '@v1/supabase': mockPath,
-        '@v1/analytics': mockPath,
-        '@v1/kv': mockPath,
-        '@v1/logger': mockPath,
+        '@v1/ui': path.join(mockPath, 'ui.ts'),
+        '@v1/supabase': path.join(mockPath, 'supabase.ts'),
+        '@v1/analytics': path.join(mockPath, 'analytics.ts'),
+        '@v1/kv': path.join(mockPath, 'kv.ts'),
+        '@v1/logger': path.join(mockPath, 'logger.ts'),
       };
     }
     
@@ -36,11 +36,16 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  silent: !process.env.CI,
-  telemetry: false,
-  widenClientFileUpload: true,
-  hideSourceMaps: true,
-  disableLogger: true,
-  tunnelRoute: "/monitoring",
-});
+// Skip Sentry in development
+const config = process.env.NODE_ENV === 'development' 
+  ? nextConfig 
+  : withSentryConfig(nextConfig, {
+      silent: !process.env.CI,
+      telemetry: false,
+      widenClientFileUpload: true,
+      hideSourceMaps: true,
+      disableLogger: true,
+      tunnelRoute: "/monitoring",
+    });
+
+export default config;

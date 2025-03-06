@@ -7,16 +7,19 @@ export default function HomePage() {
       justifyContent: 'center',
       minHeight: '100vh',
       padding: '1rem',
-      textAlign: 'center'
+      textAlign: 'center',
+      backgroundColor: '#f7f7f7',
+      color: '#333',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
     }}>
-      <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
+      <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
         Deep Work Scheduler
       </h1>
       <p style={{ fontSize: '1.25rem', marginBottom: '2rem' }}>
         Plan your day for maximum productivity
       </p>
       <div style={{ 
-        padding: '1.5rem', 
+        padding: '2rem', 
         maxWidth: '28rem', 
         backgroundColor: 'white',
         borderRadius: '0.5rem',
